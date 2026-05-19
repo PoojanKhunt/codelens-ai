@@ -7,7 +7,7 @@ const workspaceDir = path.join(__dirname, '..', 'workspace');
 async function cloneRepository(githubUrl, projectId) {
     const targetDir = path.join(workspaceDir, projectId.toString());
 
-    // Remove directory if it already exists
+    // Remove existing directory if present
     if (fs.existsSync(targetDir)) {
         fs.rmSync(targetDir, { recursive: true, force: true });
     }
@@ -15,12 +15,18 @@ async function cloneRepository(githubUrl, projectId) {
     // Ensure workspace exists
     fs.mkdirSync(workspaceDir, { recursive: true });
 
-    // Clone repository
     const git = simpleGit();
 
     console.log(`Cloning ${githubUrl} into ${targetDir}...`);
-    await git.clone(githubUrl, targetDir);
-    console.log(`Repository cloned successfully.`);
+
+    // Shallow clone: only latest snapshot, much faster and more reliable
+    await git.clone(githubUrl, targetDir, [
+        '--depth',
+        '1',
+        '--single-branch'
+    ]);
+
+    console.log('Repository cloned successfully.');
 
     return targetDir;
 }
