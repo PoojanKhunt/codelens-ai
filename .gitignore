@@ -5,10 +5,13 @@ server/node_modules/
 
 # Python virtual environment
 python-rag/venv/
+python-rag/__pycache__/
+*.pyc
 
 # Environment files
 .env
 server/.env
+.env.local
 
 # Python cache
 __pycache__/
@@ -25,3 +28,7 @@ uploads/
 # OS/editor files
 .DS_Store
 .vscode/
+
+# Node
+node_modules/
+server/workspace/
