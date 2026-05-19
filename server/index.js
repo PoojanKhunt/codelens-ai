@@ -4,6 +4,7 @@ require('dotenv').config();
 
 const connectDB = require('./config/db');
 const projectRoutes = require('./routes/projectRoutes');
+const symbolRoutes = require('./routes/symbolRoutes');
 
 const app = express();
 
@@ -21,6 +22,9 @@ app.get('/api/health', (req, res) => {
     service: 'server',
   });
 });
+
+//Symbol routes
+app.use('/api/symbols', symbolRoutes);
 
 // Project routes
 app.use('/api/projects', projectRoutes);
