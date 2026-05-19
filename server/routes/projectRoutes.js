@@ -1,10 +1,10 @@
 const express = require('express');
 const Project = require('../models/Project');
+const { cloneRepository } = require('../services/gitService');
 
 const router = express.Router();
 
 // GET /api/projects
-// Fetch all projects
 router.get('/', async (req, res) => {
     try {
         const projects = await Project.find().sort({ createdAt: -1 });
@@ -18,11 +18,11 @@ router.get('/', async (req, res) => {
 });
 
 // POST /api/projects
-// Create a new project
 router.post('/', async (req, res) => {
     try {
         const { name, description, githubUrl, language } = req.body;
 
+        // Create project
         const project = new Project({
             name,
             description,
@@ -30,9 +30,24 @@ router.post('/', async (req, res) => {
             language,
         });
 
-        const savedProject = await project.save();
+        await project.save();
 
-        res.status(201).json(savedProject);
+        // Clone repository if GitHub URL is provided
+        if (githubUrl && githubUrl.trim() !== '') {
+            try {
+                await cloneRepository(githubUrl, project._id);
+
+                project.status = 'indexing';
+                await project.save();
+            } catch (cloneError) {
+                console.error('Repository clone failed:', cloneError.message);
+
+                project.status = 'error';
+                await project.save();
+            }
+        }
+
+        res.status(201).json(project);
     } catch (error) {
         res.status(400).json({
             message: 'Failed to create project',
