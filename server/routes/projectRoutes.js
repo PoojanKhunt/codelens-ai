@@ -2,7 +2,12 @@ const express = require('express');
 const Project = require('../models/Project');
 const { cloneRepository } = require('../services/gitService');
 
+const { extractAndStoreSymbols } = require('../services/symbolService');
+const axios = require('axios');
+
 const router = express.Router();
+
+const PYTHON_API = 'http://localhost:8000';
 
 // GET /api/projects
 router.get('/', async (req, res) => {
@@ -35,12 +40,45 @@ router.post('/', async (req, res) => {
         // Clone repository if GitHub URL is provided
         if (githubUrl && githubUrl.trim() !== '') {
             try {
-                await cloneRepository(githubUrl, project._id);
+                // Clone repository
+                const repoPath = await cloneRepository(
+                    githubUrl,
+                    project._id
+                );
 
+                // Update status
                 project.status = 'indexing';
                 await project.save();
+
+                // Scan repository using Python service
+                const scanResponse = await axios.post(
+                    `${PYTHON_API}/scan`,
+                    {
+                        repo_path: repoPath,
+                    }
+                );
+
+                const files = scanResponse.data.files;
+
+                // Extract and store symbols
+                const symbolCount = await extractAndStoreSymbols(
+                    project._id,
+                    files,
+                    repoPath
+                );
+
+                // Mark project as fully indexed
+                project.status = 'indexed';
+                await project.save();
+
+                console.log(
+                    `Indexed ${symbolCount} symbols for ${project.name}`
+                );
             } catch (cloneError) {
-                console.error('Repository clone failed:', cloneError.message);
+                console.error(
+                    'Repository clone/index failed:',
+                    cloneError.message
+                );
 
                 project.status = 'error';
                 await project.save();

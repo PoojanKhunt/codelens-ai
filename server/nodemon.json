@@ -1,0 +1,6 @@
+{
+    "ignore": [
+        "workspace/*",
+        "node_modules/*"
+    ]
+}
