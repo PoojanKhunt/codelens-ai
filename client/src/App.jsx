@@ -1,20 +1,46 @@
 import { useEffect, useState } from 'react';
-import axios from 'axios';
+import api from './services/api';
+import ProjectForm from './components/ProjectForm';
+import ProjectList from './components/ProjectList';
 
 function App() {
-  const [status, setStatus] = useState('Loading...');
+  const [projects, setProjects] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchProjects = async () => {
+    try {
+      const response = await api.get('/projects');
+      setProjects(response.data);
+    } catch (error) {
+      console.error('Failed to fetch projects:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    axios
-      .get('http://localhost:5000/api/health')
-      .then((res) => setStatus(res.data.status))
-      .catch(() => setStatus('Server not reachable'));
+    fetchProjects();
   }, []);
 
   return (
-    <div style={{ padding: '2rem', fontFamily: 'sans-serif' }}>
+    <div
+      style={{
+        maxWidth: '900px',
+        margin: '0 auto',
+        padding: '2rem',
+        fontFamily: 'sans-serif',
+      }}
+    >
       <h1>CodeLens AI</h1>
-      <p>Backend status: {status}</p>
+      <p>Repository Intelligence and RAG Platform</p>
+
+      <ProjectForm onProjectCreated={fetchProjects} />
+
+      {loading ? (
+        <p>Loading projects...</p>
+      ) : (
+        <ProjectList projects={projects} />
+      )}
     </div>
   );
 }
