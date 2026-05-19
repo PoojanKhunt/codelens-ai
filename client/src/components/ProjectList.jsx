@@ -1,5 +1,7 @@
+import ChatPanel from './ChatPanel';
+
 function ProjectList({ projects }) {
-    if (projects.length === 0) {
+    if (!projects || projects.length === 0) {
         return <p>No projects yet.</p>;
     }
 
@@ -15,12 +17,16 @@ function ProjectList({ projects }) {
                         padding: '1rem',
                         marginBottom: '1rem',
                         borderRadius: '8px',
+                        backgroundColor: '#fafafa',
                     }}
                 >
+                    {/* Project Name */}
                     <h3>{project.name}</h3>
 
+                    {/* Description */}
                     {project.description && <p>{project.description}</p>}
 
+                    {/* GitHub Repository Link */}
                     {project.githubUrl && (
                         <p>
                             <a
@@ -33,21 +39,30 @@ function ProjectList({ projects }) {
                         </p>
                     )}
 
+                    {/* Programming Language */}
                     {project.language && (
                         <p>
                             <strong>Language:</strong> {project.language}
                         </p>
                     )}
 
+                    {/* Current Status */}
                     <p>
                         <strong>Status:</strong> {project.status}
                     </p>
 
-                    <p>
-                        <small>
-                            Created: {new Date(project.createdAt).toLocaleString()}
-                        </small>
-                    </p>
+                    {/* Creation Date */}
+                    {project.createdAt && (
+                        <p>
+                            <small>
+                                Created:{' '}
+                                {new Date(project.createdAt).toLocaleString()}
+                            </small>
+                        </p>
+                    )}
+
+                    {/* Phase 6: RAG Search Chat Panel */}
+                    <ChatPanel projectId={project._id} />
                 </div>
             ))}
         </div>

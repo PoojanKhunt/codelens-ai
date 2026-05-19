@@ -1,6 +1,10 @@
 const path = require('path');
+const axios = require('axios');
 const Symbol = require('../models/Symbol');
 const { extractFunctions } = require('./pythonService');
+
+const PYTHON_API =
+    process.env.PYTHON_RAG_URL || 'http://localhost:8000';
 
 /**
  * Extract functions from a list of files and store them in MongoDB.
@@ -16,14 +20,21 @@ async function extractAndStoreSymbols(projectId, files, repoPath) {
     let totalSymbols = 0;
 
     for (const filePath of files) {
-        // For now, only process JavaScript files
+        // Process only JavaScript files
         if (!filePath.endsWith('.js')) {
             continue;
         }
 
         try {
+            // Extract functions from the file using the Python AST parser
             const functions = await extractFunctions(filePath);
 
+            // Skip files with no functions
+            if (!functions || functions.length === 0) {
+                continue;
+            }
+
+            // Convert extracted functions into MongoDB documents
             const documents = functions.map((fn) => ({
                 projectId,
                 name: fn.name,
@@ -33,12 +44,30 @@ async function extractAndStoreSymbols(projectId, files, repoPath) {
                 endLine: fn.endLine,
             }));
 
-            if (documents.length > 0) {
-                await Symbol.insertMany(documents);
-                totalSymbols += documents.length;
+            // Insert symbols into MongoDB
+            const insertedSymbols = await Symbol.insertMany(documents);
+
+            // Send each inserted symbol to Python for embedding + Chroma indexing
+            for (const symbol of insertedSymbols) {
+                try {
+                    await axios.post(`${PYTHON_API}/index-symbol`, {
+                        symbol,
+                    });
+                } catch (error) {
+                    console.error(
+                        `Failed to index symbol ${symbol.name}:`,
+                        error.message
+                    );
+                }
             }
+
+            // Update total count
+            totalSymbols += insertedSymbols.length;
         } catch (error) {
-            console.error(`Failed to parse ${filePath}:`, error.message);
+            console.error(
+                `Failed to parse ${filePath}:`,
+                error.message
+            );
         }
     }
 
