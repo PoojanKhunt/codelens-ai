@@ -3,6 +3,7 @@ from pydantic import BaseModel
 
 from app.services.parser_service import scan_source_files
 from app.services.ast_parser import extract_javascript_functions
+from app.services.indexing_service import index_symbol
 
 app = FastAPI()
 
@@ -13,6 +14,9 @@ class ScanRequest(BaseModel):
 
 class ExtractRequest(BaseModel):
     file_path: str
+
+class SymbolRequest(BaseModel):
+    symbol: dict
 
 
 @app.get("/")
@@ -40,4 +44,13 @@ def extract_functions(request: ExtractRequest):
     return {
         "count": len(functions),
         "functions": functions
+    }
+
+@app.post("/index-symbol")
+def index_symbol_endpoint(request: SymbolRequest):
+    index_symbol(request.symbol)
+
+    return {
+        "status": "success",
+        "message": f"Indexed symbol {request.symbol.get('name', '')}"
     }
