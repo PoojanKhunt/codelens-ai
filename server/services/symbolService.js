@@ -3,83 +3,80 @@ const axios = require('axios');
 const Symbol = require('../models/Symbol');
 const { extractFunctions } = require('./pythonService');
 
-const PYTHON_API =
-    process.env.PYTHON_RAG_URL || 'http://localhost:8000';
+const PYTHON_API = process.env.PYTHON_RAG_URL || 'http://localhost:8000';
 
-/**
- * Extract functions from a list of files and store them in MongoDB.
- *
- * @param {string} projectId - MongoDB Project ObjectId
- * @param {string[]} files - Absolute file paths
- * @param {string} repoPath - Absolute repository root path
- */
+const SUPPORTED = ['.js', '.jsx', '.ts', '.tsx', '.py', '.cpp', '.cc', '.cxx', '.h', '.hpp', '.go', '.java'];
+
+async function indexFileSummary(projectId, filePath, repoPath, functions) {
+    if (functions.length === 0) return;
+
+    const relativePath = path.relative(repoPath, filePath);
+    const functionNames = functions.map(f => f.name).join(', ');
+    const ext = path.extname(filePath).slice(1);
+
+    const summarySymbol = {
+        _id: `summary_${projectId}_${relativePath.replace(/[/\\]/g, '_')}`,
+        projectId,
+        name: `${path.basename(filePath)} (file summary)`,
+        type: 'file',
+        filePath: relativePath,
+        startLine: 1,
+        endLine: functions[functions.length - 1]?.endLine || 1,
+        sourceCode: `File: ${relativePath}
+Language: ${ext}
+Contains ${functions.length} symbols: ${functionNames}`,
+    };
+
+    try {
+        await axios.post(`${PYTHON_API}/index-symbol`, { symbol: summarySymbol });
+    } catch (e) {
+        console.error(`Failed to index file summary for ${relativePath}:`, e.message);
+    }
+}
+
 async function extractAndStoreSymbols(projectId, files, repoPath) {
-    // Remove existing symbols for this project
     await Symbol.deleteMany({ projectId });
 
     let totalSymbols = 0;
 
     for (const filePath of files) {
-        // Process only JavaScript files
-        const SUPPORTED = ['.js', '.jsx', '.ts', '.tsx', '.py', '.cpp', '.cc', '.cxx', '.h', '.hpp', '.go', '.java'];
+        if (!SUPPORTED.some(ext => filePath.endsWith(ext))) continue;
 
         try {
-            // Extract functions from the file using the Python AST parser
             const functions = await extractFunctions(filePath);
 
-            // Skip files with no functions
-            if (!functions || functions.length === 0) {
-                continue;
-            }
+            if (!functions || functions.length === 0) continue;
 
-            // Convert extracted functions into MongoDB documents
-            const documents = functions.map((fn) => {
-                // Temporary debug log
-                console.log(fn);
+            const documents = functions.map((fn) => ({
+                projectId,
+                name: fn.name,
+                type: fn.type,
+                filePath: path.relative(repoPath, filePath),
+                startLine: fn.startLine,
+                endLine: fn.endLine,
+                sourceCode: fn.code || '',
+            }));
 
-                return {
-                    projectId,
-                    name: fn.name,
-                    type: fn.type,
-                    filePath: path.relative(repoPath, filePath),
-                    startLine: fn.startLine,
-                    endLine: fn.endLine,
-
-                    // Full function source code for better LLM explanations
-                    sourceCode: fn.code || '',
-                };
-            });
-
-            // Insert symbols into MongoDB
             const insertedSymbols = await Symbol.insertMany(documents);
 
-            // Send each inserted symbol to Python for embedding + Chroma indexing
             for (const symbol of insertedSymbols) {
                 try {
-                    await axios.post(`${PYTHON_API}/index-symbol`, {
-                        symbol,
-                    });
+                    await axios.post(`${PYTHON_API}/index-symbol`, { symbol });
                 } catch (error) {
-                    console.error(
-                        `Failed to index symbol ${symbol.name}:`,
-                        error.message
-                    );
+                    console.error(`Failed to index symbol ${symbol.name}:`, error.message);
                 }
             }
 
-            // Update total count
+            // index file summary after all symbols for this file
+            await indexFileSummary(projectId, filePath, repoPath, functions);
+
             totalSymbols += insertedSymbols.length;
         } catch (error) {
-            console.error(
-                `Failed to parse ${filePath}:`,
-                error.message
-            );
+            console.error(`Failed to parse ${filePath}:`, error.message);
         }
     }
 
     return totalSymbols;
 }
 
-module.exports = {
-    extractAndStoreSymbols,
-};
+module.exports = { extractAndStoreSymbols };

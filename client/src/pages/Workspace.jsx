@@ -50,7 +50,7 @@ export default function Workspace() {
         setChatHistories(prev => ({ ...prev, [projectId]: updatedMessages }));
         setLoadingChat(true);
         try {
-            const res = await api.post('/chat', { query, projectId });
+            const res = await api.post('/chat', { query, projectId, history: messages.slice(-6) });
             const aiMsg = { role: 'assistant', content: res.data.answer || 'No response generated.' };
             const finalMessages = [...updatedMessages, aiMsg];
             setMessages(finalMessages);

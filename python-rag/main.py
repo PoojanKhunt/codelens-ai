@@ -25,7 +25,8 @@ class SymbolRequest(BaseModel):
 class QueryRequest(BaseModel):
     query: str
     project_id: str
-    n_results: int = 5
+    n_results: int = 8
+    history: list = []
 
 
 @app.get("/")
@@ -96,7 +97,7 @@ def query_symbols(request: QueryRequest):
         })
 
     # Generate natural-language answer using Gemini
-    answer = generate_answer(request.query, matches)
+    answer = generate_answer(request.query, matches, request.history)
 
     return {
         "query": request.query,

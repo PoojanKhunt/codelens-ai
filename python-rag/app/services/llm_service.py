@@ -2,49 +2,45 @@ import os
 from dotenv import load_dotenv
 import google.generativeai as genai
 
-# Load environment variables from .env
 load_dotenv()
 
-# Configure Gemini
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-
-# Use a fast and capable model
 model = genai.GenerativeModel("gemini-2.5-flash")
 
 
-def generate_answer(query: str, results: list) -> str:
-    """
-    Generate a natural-language explanation based on retrieved code symbols.
-    Includes graceful fallback when Gemini quota is exceeded.
-    """
-
+def generate_answer(query: str, results: list, history: list = []) -> str:
     if not results:
         return "I could not find any relevant code for your question."
 
+    # Build conversation history context
+    history_text = ""
+    if history:
+        for msg in history[-4:]:
+            role = "User" if msg["role"] == "user" else "Assistant"
+            history_text += f"{role}: {msg['content'][:300]}\n"
+
     # Build context from retrieved symbols
     context_parts = []
-
     for result in results:
         context_parts.append(
-            f"""
-Symbol: {result.get('name')}
+            f"""Symbol: {result.get('name')}
 Type: {result.get('type')}
 File: {result.get('filePath')}
 Lines: {result.get('startLine')}-{result.get('endLine')}
 
 Content:
-{result.get('text')}
-"""
+{result.get('text')}"""
         )
 
     context = "\n\n".join(context_parts)
 
-    # Limit context size to avoid very large prompts
     if len(context) > 20000:
         context = context[:20000] + "\n\n[Context truncated]"
 
-    prompt = f"""
-You are an expert software engineering assistant.
+    prompt = f"""You are an expert software engineering assistant.
+
+Previous conversation:
+{history_text}
 
 Answer the user's question using ONLY the provided code context.
 
@@ -64,17 +60,13 @@ Instructions:
 
     try:
         response = model.generate_content(prompt)
-
-        # Safely extract text
         if hasattr(response, "text") and response.text:
             return response.text.strip()
-
         return "The model returned an empty response."
 
     except Exception as e:
         error_text = str(e)
 
-        # Handle Gemini quota exceeded
         if (
             "RESOURCE_EXHAUSTED" in error_text
             or "429" in error_text
@@ -82,18 +74,13 @@ Instructions:
         ):
             return (
                 "⚠️ Gemini API quota exceeded.\n\n"
-                "The retrieval pipeline worked successfully and relevant code "
-                "was found, but the language model has temporarily hit the "
-                "free-tier request limit.\n\n"
                 "Please wait about one minute and try again."
             )
 
-        # Handle missing API key
         if "API key" in error_text or "api_key" in error_text.lower():
             return (
                 "⚠️ GEMINI_API_KEY is missing or invalid. "
                 "Please check your Python `.env` file."
             )
 
-        # Generic fallback
         return f"⚠️ LLM Error:\n\n{error_text}"
