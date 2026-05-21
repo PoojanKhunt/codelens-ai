@@ -1,18 +1,31 @@
 const express = require('express');
-const Project = require('../models/Project');
-const { cloneRepository } = require('../services/gitService');
-
-const { extractAndStoreSymbols } = require('../services/symbolService');
 const axios = require('axios');
+
+const Project = require('../models/Project');
+const protect = require('../middleware/authMiddleware');
+
+const { cloneRepository } = require('../services/gitService');
+const { extractAndStoreSymbols } = require('../services/symbolService');
 
 const router = express.Router();
 
 const PYTHON_API = 'http://localhost:8000';
 
+const Symbol = require('../models/Symbol');
+
+// Protect all routes in this file
+router.use(protect);
+
+//
 // GET /api/projects
+// Return only projects belonging to the logged-in user
+//
 router.get('/', async (req, res) => {
     try {
-        const projects = await Project.find().sort({ createdAt: -1 });
+        const projects = await Project.find({
+            userId: req.user._id,
+        }).sort({ createdAt: -1 });
+
         res.json(projects);
     } catch (error) {
         res.status(500).json({
@@ -22,13 +35,35 @@ router.get('/', async (req, res) => {
     }
 });
 
+// DELETE /api/projects/:id
+router.delete('/:id', protect, async (req, res) => {
+    try {
+        const project = await Project.findOneAndDelete({
+            _id: req.params.id,
+            userId: req.user._id,
+        });
+        if (!project) return res.status(404).json({ message: 'Project not found' });
+
+        // delete symbols too
+        await Symbol.deleteMany({ projectId: req.params.id });
+
+        res.json({ message: 'Project deleted' });
+    } catch (e) {
+        res.status(500).json({ message: e.message });
+    }
+});
+
+//
 // POST /api/projects
+// Create a project associated with the logged-in user
+//
 router.post('/', async (req, res) => {
     try {
         const { name, description, githubUrl, language } = req.body;
 
-        // Create project
+        // Create project linked to current user
         const project = new Project({
+            userId: req.user._id,
             name,
             description,
             githubUrl,

@@ -30,6 +30,10 @@ const symbolSchema = new mongoose.Schema(
             type: Number,
             required: true,
         },
+        sourceCode: {
+            type: String,
+            default: '',
+        },
     },
     {
         timestamps: true,

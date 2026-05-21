@@ -5,6 +5,8 @@ require('dotenv').config();
 const connectDB = require('./config/db');
 const projectRoutes = require('./routes/projectRoutes');
 const symbolRoutes = require('./routes/symbolRoutes');
+const authRoutes = require('./routes/auth');
+const chatRoutes = require('./routes/chatRoutes');
 
 const app = express();
 
@@ -14,6 +16,9 @@ connectDB();
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Authentication routes
+app.use('/api/auth', authRoutes);
 
 // Health route
 app.get('/api/health', (req, res) => {
@@ -35,5 +40,4 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
 
-const chatRoutes = require('./routes/chatRoutes');
 app.use('/api/chat', chatRoutes);

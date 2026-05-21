@@ -34,7 +34,14 @@ def scan_source_files(repo_path: str):
 
     files = []
 
+    IGNORED_PATHS = {
+        'node_modules', '.git', 'dist', 'build',
+        'test', 'tests', '__tests__', '.next', 'coverage'
+    }
+
     for path in repo.rglob("*"):
+        if any(part in IGNORED_PATHS for part in path.parts):
+            continue
         if path.is_file() and path.suffix.lower() in SUPPORTED_EXTENSIONS:
             files.append(str(path.resolve()))
 

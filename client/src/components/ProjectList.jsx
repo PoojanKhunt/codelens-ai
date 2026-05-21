@@ -1,68 +1,49 @@
 import ChatPanel from './ChatPanel';
 
 function ProjectList({ projects }) {
-    if (!projects || projects.length === 0) {
-        return <p>No projects yet.</p>;
+    if (projects.length === 0) {
+        return (
+            <div className="rounded-3xl border border-[#30363d] bg-[#161b22] p-10 text-center text-[#8b949e]">
+                No projects created yet.
+            </div>
+        );
     }
 
     return (
-        <div>
-            <h2>Projects</h2>
-
+        <div className="space-y-8">
             {projects.map((project) => (
                 <div
                     key={project._id}
-                    style={{
-                        border: '1px solid #ccc',
-                        padding: '1rem',
-                        marginBottom: '1rem',
-                        borderRadius: '8px',
-                        backgroundColor: '#fafafa',
-                    }}
+                    className="rounded-3xl border border-[#30363d] bg-[#161b22]/90 backdrop-blur shadow-2xl overflow-hidden"
                 >
-                    {/* Project Name */}
-                    <h3>{project.name}</h3>
+                    <div className="px-8 py-6 border-b border-[#30363d] flex items-start justify-between gap-4">
+                        <div>
+                            <h3 className="text-2xl font-bold mb-2">{project.name}</h3>
+                            <p className="text-[#8b949e]">{project.description}</p>
+                        </div>
 
-                    {/* Description */}
-                    {project.description && <p>{project.description}</p>}
+                        <span className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-sm font-medium">
+                            {project.status}
+                        </span>
+                    </div>
 
-                    {/* GitHub Repository Link */}
-                    {project.githubUrl && (
-                        <p>
+                    <div className="px-8 py-4 border-b border-[#30363d] text-sm text-[#8b949e] flex flex-wrap gap-6">
+                        <span>{project.language}</span>
+                        {project.githubUrl && (
                             <a
                                 href={project.githubUrl}
                                 target="_blank"
                                 rel="noreferrer"
+                                className="text-blue-400 hover:text-blue-300"
                             >
                                 GitHub Repository
                             </a>
-                        </p>
-                    )}
+                        )}
+                    </div>
 
-                    {/* Programming Language */}
-                    {project.language && (
-                        <p>
-                            <strong>Language:</strong> {project.language}
-                        </p>
-                    )}
-
-                    {/* Current Status */}
-                    <p>
-                        <strong>Status:</strong> {project.status}
-                    </p>
-
-                    {/* Creation Date */}
-                    {project.createdAt && (
-                        <p>
-                            <small>
-                                Created:{' '}
-                                {new Date(project.createdAt).toLocaleString()}
-                            </small>
-                        </p>
-                    )}
-
-                    {/* Phase 6: RAG Search Chat Panel */}
-                    <ChatPanel projectId={project._id} />
+                    <div className="p-8">
+                        <ChatPanel projectId={project._id} />
+                    </div>
                 </div>
             ))}
         </div>

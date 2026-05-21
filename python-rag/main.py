@@ -2,10 +2,12 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 
 from app.services.parser_service import scan_source_files
-from app.services.ast_parser import extract_javascript_functions
+from app.services.ast_parser import extract_symbols
 from app.services.indexing_service import index_symbol
 from app.services.embedding_service import generate_embedding
 from app.services.vector_store import search_similar
+from app.services.llm_service import generate_answer
+from app.services.vector_store import collection
 
 app = FastAPI()
 
@@ -46,7 +48,7 @@ def scan_repository(request: ScanRequest):
 
 @app.post("/extract-functions")
 def extract_functions(request: ExtractRequest):
-    functions = extract_javascript_functions(request.file_path)
+    functions = extract_symbols(request.file_path)
 
     return {
         "count": len(functions),
@@ -64,7 +66,7 @@ def index_symbol_endpoint(request: SymbolRequest):
 
 @app.post("/query")
 def query_symbols(request: QueryRequest):
-    # Embed the natural language query
+    # Generate embedding for the user's natural language query
     query_embedding = generate_embedding(request.query)
 
     # Search Chroma for similar symbols
@@ -74,7 +76,7 @@ def query_symbols(request: QueryRequest):
         project_id=request.project_id
     )
 
-    # Format results
+    # Format retrieved matches
     matches = []
     ids = results.get("ids", [[]])[0]
     distances = results.get("distances", [[]])[0]
@@ -84,7 +86,7 @@ def query_symbols(request: QueryRequest):
     for i, symbol_id in enumerate(ids):
         matches.append({
             "id": symbol_id,
-            "score": round(1 - distances[i], 4),  # convert distance to similarity
+            "score": round((2 - distances[i]) / 2, 4),
             "name": metadatas[i].get("name"),
             "type": metadatas[i].get("type"),
             "filePath": metadatas[i].get("filePath"),
@@ -93,4 +95,20 @@ def query_symbols(request: QueryRequest):
             "text": documents[i],
         })
 
-    return {"query": request.query, "results": matches}
+    # Generate natural-language answer using Gemini
+    answer = generate_answer(request.query, matches)
+
+    return {
+        "query": request.query,
+        "answer": answer,
+        "results": matches,
+    }
+
+@app.get("/debug/{project_id}")
+def debug_collection(project_id: str):
+    results = collection.get(where={"projectId": project_id})
+    return {
+        "count": len(results["ids"]),
+        "ids": results["ids"][:5],
+        "metadatas": results["metadatas"][:5],
+    }

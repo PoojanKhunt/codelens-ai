@@ -2,6 +2,11 @@ const mongoose = require('mongoose');
 
 const projectSchema = new mongoose.Schema(
     {
+        userId: {
+            type: require('mongoose').Schema.Types.ObjectId,
+            ref: 'User',
+            required: true,
+        },
         name: {
             type: String,
             required: true,
@@ -22,7 +27,7 @@ const projectSchema = new mongoose.Schema(
 
         status: {
             type: String,
-            enum: ['created', 'indexing', 'ready', 'error'],
+            enum: ['created', 'indexing', 'indexed', 'ready', 'error'],  // add 'indexed'
             default: 'created',
         },
 

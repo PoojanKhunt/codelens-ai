@@ -21,9 +21,7 @@ async function extractAndStoreSymbols(projectId, files, repoPath) {
 
     for (const filePath of files) {
         // Process only JavaScript files
-        if (!filePath.endsWith('.js')) {
-            continue;
-        }
+        const SUPPORTED = ['.js', '.jsx', '.ts', '.tsx', '.py', '.cpp', '.cc', '.cxx', '.h', '.hpp', '.go', '.java'];
 
         try {
             // Extract functions from the file using the Python AST parser
@@ -35,14 +33,22 @@ async function extractAndStoreSymbols(projectId, files, repoPath) {
             }
 
             // Convert extracted functions into MongoDB documents
-            const documents = functions.map((fn) => ({
-                projectId,
-                name: fn.name,
-                type: fn.type,
-                filePath: path.relative(repoPath, filePath),
-                startLine: fn.startLine,
-                endLine: fn.endLine,
-            }));
+            const documents = functions.map((fn) => {
+                // Temporary debug log
+                console.log(fn);
+
+                return {
+                    projectId,
+                    name: fn.name,
+                    type: fn.type,
+                    filePath: path.relative(repoPath, filePath),
+                    startLine: fn.startLine,
+                    endLine: fn.endLine,
+
+                    // Full function source code for better LLM explanations
+                    sourceCode: fn.code || '',
+                };
+            });
 
             // Insert symbols into MongoDB
             const insertedSymbols = await Symbol.insertMany(documents);

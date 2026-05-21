@@ -1,47 +1,49 @@
-import { useEffect, useState } from 'react';
-import api from './services/api';
-import ProjectForm from './components/ProjectForm';
-import ProjectList from './components/ProjectList';
+import { Routes, Route, Navigate } from 'react-router-dom';
+
+import { useAuth } from './context/AuthContext';
+import ProtectedRoute from './components/ProtectedRoute';
+
+import Landing from './pages/Landing';
+import Login from './pages/Login';
+import Register from './pages/Register';
+import Workspace from './pages/Workspace';
 
 function App() {
-  const [projects, setProjects] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  const fetchProjects = async () => {
-    try {
-      const response = await api.get('/projects');
-      setProjects(response.data);
-    } catch (error) {
-      console.error('Failed to fetch projects:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchProjects();
-  }, []);
+  const { isAuthenticated } = useAuth();
 
   return (
-    <div
-      style={{
-        maxWidth: '900px',
-        margin: '0 auto',
-        padding: '2rem',
-        fontFamily: 'sans-serif',
-      }}
-    >
-      <h1>CodeLens AI</h1>
-      <p>Repository Intelligence and RAG Platform</p>
+    <Routes>
+      {/* Public Landing Page */}
+      <Route path="/" element={<Landing />} />
 
-      <ProjectForm onProjectCreated={fetchProjects} />
+      {/* Authentication Pages */}
+      <Route
+        path="/login"
+        element={
+          isAuthenticated ? <Navigate to="/app" replace /> : <Login />
+        }
+      />
 
-      {loading ? (
-        <p>Loading projects...</p>
-      ) : (
-        <ProjectList projects={projects} />
-      )}
-    </div>
+      <Route
+        path="/register"
+        element={
+          isAuthenticated ? <Navigate to="/app" replace /> : <Register />
+        }
+      />
+
+      {/* Protected Workspace */}
+      <Route
+        path="/app"
+        element={
+          <ProtectedRoute>
+            <Workspace />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Fallback */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 }
 
